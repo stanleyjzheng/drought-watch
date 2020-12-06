@@ -15,7 +15,7 @@ def build_model(dim=65, ef=0):
     base = EFNS[ef](input_shape=(dim,dim,10),weights=None,include_top=False) #Change imagnet to noisy-student here
     x = base(inp)
     x = tf.keras.layers.GlobalAveragePooling2D()(x)
-    x = tf.keras.layers.Dense(1,activation='sigmoid')(x)
+    x = tf.keras.layers.Dense(4,activation='sigmoid')(x)
     model = tf.keras.Model(inputs=inp,outputs=x)
     opt = tf.keras.optimizers.Adam(learning_rate=0.001)
     loss_bce = tf.keras.losses.BinaryCrossentropy(label_smoothing=0.005)
@@ -24,7 +24,7 @@ def build_model(dim=65, ef=0):
 
 @st.cache
 def modelCache():
-    model = build_model(dim=224, ef=0)
+    model = build_model(dim=65, ef=0)
     model.load_weights('input/droughtwatch.hdf5')
     return model
 
@@ -93,8 +93,8 @@ def get_dataset(files, augment = False, shuffle = False, repeat = False,
     else: 
         ds = ds.map(read_unlabelled_tfrecord, num_parallel_calls=AUTO)
     
-    ds = ds.map(lambda img, imgname_or_label: (prepare_image(img, augment=augment, dim=dim), tf.reshape(imgname_or_label/3, [1])), num_parallel_calls=AUTO)
-        
+    ds = ds.map(lambda img, imgname_or_label: (prepare_image(img, augment=augment, dim=dim), tf.one_hot(imgname_or_label, 4, dtype=tf.float32), [4]), num_parallel_calls=AUTO)
+    
     ds = ds.batch(batch_size)
     ds = ds.prefetch(AUTO)
     return ds
@@ -108,25 +108,18 @@ def predict(x):
     label = model.predict(x)
     maxlabel = np.argmax(label)
     prob = label[0][maxlabel]
-    if maxlabel == 0:
-        label = 'Normal'
-    elif maxlabel == 1:
-        label = 'Viral Pneumonia or other pneumonia'
-    elif maxlabel == 2:
-        label = 'COVID-19'
-    else:
-        prob = 1
-        label = 'Unknown or equal labels'
-    st.success(str("%.2f" % (prob*100)+'%'+f' {label}'))
+    prob = '%.2f' % (prob*100)
+    cows = maxlabel if maxlabel!=3 else "3+"
+    st.success(f"Land is able to support {cows} cows per square km. Certainty of {prob}%")
     return prob, label
 
 st.markdown("<style> .reportview-container .main footer {visibility: hidden;}    #MainMenu {visibility: hidden;}</style>", unsafe_allow_html=True)
 
 st.write('<h1 style="font-weight:400; color:red">DroughtWatch</h1>', unsafe_allow_html=True)
-st.write('### Predict foliage cover of a 2km square 10 channel (or 3 channel) image with %s%% '% 70 + 'accuracy')
+st.write('### Predict foliage cover of a 2km square 10 channel (or 3 channel) image with %s%% '% 77 + 'accuracy')
 st.write('This model is superior to a currently deployed model in Kenya. Please see hackathon submission down below. Created in 12 hours during HackCamp 2020')
 
-st.write('Feel free to download images below to test. There are two file types: images, which are 3 channel and predict quickly, and npy, which can contain many 10 channel images resulting in greater accuracy and an easy way to predict thousands of images.')
+st.write('Feel free to [download images](https://github.com/stanleyjzheng/drought-watch/tree/master/example_images) to test. There are two file types: conventional images, which are 3 channel (RGB), and npy, which contain 10 channel images resulting in greater accuracy.')
 st.write('Convert from tfrecord to npy with our GitHub repo linked below.')
 
 userFile = st.file_uploader('Please upload an image or tfrecord', type=['jpg', 'jpeg', 'png', 'npy'])
@@ -144,10 +137,6 @@ if userFile is not None:
         label = predict(img)
 
 st.markdown('''
-Please remind me to update these to legit links lol
-
-[Download test images](https://github.com/stanleyjzheng/drought-watch/tree/master/example_images)
-
 [Source Code](https://github.com/stanleyjzheng/drought-watch)
 
 [My GitHub with other projects](https://github.com/stanleyjzheng)
