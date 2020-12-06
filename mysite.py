@@ -10,6 +10,11 @@ EFNS = [efn.EfficientNetB0, efn.EfficientNetB1, efn.EfficientNetB2, efn.Efficien
 
 AUTO = tf.data.experimental.AUTOTUNE
 
+st.set_page_config(
+    page_title="Drought-watch",  # default page title
+    layout="centered"
+)
+
 def build_model(dim=65, ef=0):
     inp = tf.keras.layers.Input(shape=(dim,dim,10))
     base = EFNS[ef](input_shape=(dim,dim,10),weights=None,include_top=False) #Change imagnet to noisy-student here
