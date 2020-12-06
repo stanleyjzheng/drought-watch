@@ -2,6 +2,7 @@ import argparse
 import os
 import math
 import tensorflow as tf
+import numpy as np
 from tensorflow.keras import layers, initializers, backend
 !pip install -q efficientnet
 import efficientnet.tfkeras as efn
@@ -9,6 +10,14 @@ from glob import glob
 
 AUTO = tf.data.experimental.AUTOTUNE
 batch_size=64
+
+# Deotte augmentations
+ROT_ = 180.0
+SHR_ = 2.0
+HZOOM_ = 8.0
+WZOOM_ = 8.0
+HSHIFT_ = 8.0
+WSHIFT_ = 8.0
 
 def load_data(data_path):
   train = file_list_from_folder("train", data_path)
@@ -34,7 +43,7 @@ def read_labeled_tfrecord(example):
       'label': tf.io.FixedLenFeature([], tf.int64),
     }              
     example = tf.io.parse_single_example(example, tfrec_format)
-    return [example[i] for i in keylist], tf.cast(example['label'], tf.float32) # required float32 for tpu, CHANGE CLIP
+    return [example[i] for i in keylist], tf.cast(example['label'], tf.uint8) # required float32 for tpu, CHANGE CLIP
 
 def read_unlabeled_tfrecord(example):
     tfrec_format = {
@@ -91,14 +100,14 @@ def get_dataset(files, augment = False, shuffle = False, repeat = False,
     else: 
         ds = ds.map(read_unlabelled_tfrecord, num_parallel_calls=AUTO)
     
-    ds = ds.map(lambda img, imgname_or_label: (prepare_image(img, augment=augment, dim=dim), tf.reshape(imgname_or_label/3, [1])), num_parallel_calls=AUTO)
+    ds = ds.map(lambda img, imgname_or_label: (prepare_image(img, augment=augment, dim=dim), tf.one_hot(imgname_or_label, 4, dtype=tf.float32), [4]), num_parallel_calls=AUTO)
         
     ds = ds.batch(batch_size)
     ds = ds.prefetch(AUTO)
     return ds
 
 EFNS = [efn.EfficientNetB0, efn.EfficientNetB1, efn.EfficientNetB2, efn.EfficientNetB3, 
-        efn.EfficientNetB4, efn.EfficientNetB5, efn.EfficientNetB6, efn.EfficientNetB6]
+        efn.EfficientNetB4, efn.EfficientNetB5, efn.EfficientNetB6, efn.EfficientNetB7]
 
 p_min, p_max = 0.005, 0.99
 def logloss(y_true, y_pred):
@@ -110,12 +119,11 @@ def build_model(dim=256, ef=0):
     base = EFNS[ef](input_shape=(dim,dim,10),weights=None,include_top=False) #Change imagnet to noisy-student here
     x = base(inp)
     x = tf.keras.layers.GlobalAveragePooling2D()(x)
-    x = tf.keras.layers.Dense(1,activation='sigmoid')(x)
+    x = tf.keras.layers.Dense(4,activation='sigmoid')(x)
     model = tf.keras.Model(inputs=inp,outputs=x)
     opt = tf.keras.optimizers.Adam(learning_rate=0.001)
-    loss_bce = tf.keras.losses.BinaryCrossentropy(label_smoothing=0.005)
-    # model.compile(loss=loss_bce, optimizer=opt)
-    model.compile(optimizer=opt,loss=loss_bce, metrics=[logloss, 'mse', 'acc'])# 'mse'
+    loss_bce = tf.keras.losses.BinaryCrossentropy(label_smoothing=0)
+    model.compile(optimizer=opt,loss='mse', metrics=[logloss, 'mse', 'acc'])
     return model
 
 def find_files(path):
@@ -123,15 +131,13 @@ def find_files(path):
     train = glob(f"{path}/train/*")
     return train,test
 
-if __name__ == "__main__":
-    trainpath, testpath = find_files('../input/drought-watch/droughtwatch_data')
-    assert len(trainpath) !=0 and len(testpath) != 0
-    train = get_dataset(trainpath, dim=65)
-    test = get_dataset(testpath, dim=65)
-    
-    ckp = tf.keras.callbacks.ModelCheckpoint(f'droughtwatch.hdf5', monitor = 'val_logloss', verbose = 0, save_best_only = True, save_weights_only = True, mode = 'min')
-    reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(monitor='val_acc', factor=0.1, patience=2, mode='min', min_lr=1e-5, verbose=1)
-    early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_acc', min_delta=1e-5, patience=5, mode='min',restore_best_weights=True)
-    
-    model = build_model(dim=65, ef=0)
-    model.fit(train, validation_data = test, epochs=10, batch_size=batch_size, callbacks=[reduce_lr, early_stopping, ckp])  
+trainpath, testpath = find_files('../input/drought-watch/droughtwatch_data')
+train = get_dataset(trainpath, dim=65)
+test = get_dataset(testpath, dim=65)
+
+ckp = tf.keras.callbacks.ModelCheckpoint(f'droughtwatch.hdf5', monitor = 'val_logloss', verbose = 0, save_best_only = True, save_weights_only = True, mode = 'min')
+reduce_lr = tf.keras.callbacks.ReduceLROnPlateau(monitor='val_acc', factor=0.1, patience=2, mode='min', min_lr=1e-5, verbose=1)
+early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_acc', min_delta=1e-5, patience=10, mode='min',restore_best_weights=True)
+
+model = build_model(dim=65, ef=0)
+model.fit(train, validation_data = test, epochs=15, batch_size=batch_size, callbacks=[reduce_lr, early_stopping, ckp])
