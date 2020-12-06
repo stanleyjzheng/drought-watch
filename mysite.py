@@ -146,10 +146,10 @@ if userFile is not None:
 st.markdown('''
 Please remind me to update these to legit links lol
 
-[Download test images](https://github.com/Stanley-Zheng/COVID-ResNet)
+[Download test images](https://github.com/stanleyjzheng/drought-watch/tree/master/example_images)
 
-[Source Code](https://github.com/Stanley-Zheng/COVID-GoogleNet)
+[Source Code](https://github.com/stanleyjzheng/drought-watch)
 
-[My GitHub with other projects](https://github.com/Stanley-Zheng)
+[My GitHub with other projects](https://github.com/stanleyjzheng)
 
 [Hackathon submission](https://devpost.com)''')
