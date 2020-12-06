@@ -88,7 +88,7 @@ def get_dataset(files, augment = False, shuffle = False, repeat = False,
     else: 
         ds = ds.map(read_unlabelled_tfrecord, num_parallel_calls=AUTO)
     
-    ds = ds.map(lambda img, imgname_or_label: (prepare_image(img, augment=augment, dim=dim), tf.reshape(imgname_or_label/3, [1])), num_parallel_calls=AUTO)
+    ds = ds.map(lambda img, imgname_or_label: (prepare_image(img, augment=augment, dim=dim), tf.reshape(imgname_or_label, [1])), num_parallel_calls=AUTO)
         
     ds = ds.batch(batch_size)
     ds = ds.prefetch(AUTO)
@@ -98,7 +98,7 @@ if __name__=="__main__":
     dataset = get_dataset(['input/drought-watch/droughtwatch_data/val/part-r-00000'], dim=65)
     for x, y in dataset:
         # print(np.array(x[0]).shape, np.array(y[0]).shape)
-        for x_1, y_1 in zip(x, y):
-            #print(x_1.shape,y_1.shape)
+        for num,(x_1, y_1) in enumerate(zip(x, y)):
+            np.save(f"example_images/label_{int(y_1[0])}_image_num_{num+1}", np.array(x_1))
             break
         break

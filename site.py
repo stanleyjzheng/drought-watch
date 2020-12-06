@@ -3,6 +3,7 @@ import tensorflow as tf
 import efficientnet.tfkeras as efn 
 from PIL import Image
 import numpy as np
+import io
 
 EFNS = [efn.EfficientNetB0, efn.EfficientNetB1, efn.EfficientNetB2, efn.EfficientNetB3,
         efn.EfficientNetB4, efn.EfficientNetB5, efn.EfficientNetB6, efn.EfficientNetB6]
@@ -135,8 +136,10 @@ if userFile is not None:
         st.image(img, use_column_width = True, caption = 'Uploaded image')
         img = clean_rgb(img)
     except:
-        
-    st.warning("image")
+        img = userFile.getvalue()
+        img = np.load(io.BytesIO(img))
+        img = np.reshape(img, (65, 65, 10))
+        img = np.expand_dims(img, axis=0)/255.
     with st.spinner(text = 'Loading...'):
         label = predict(img)
 

@@ -1,5 +1,4 @@
 efficientnet==1.1.1
-keras-efficientnet==0.1.4
 Keras-Preprocessing==1.1.2
 numpy==1.19.1
 Pillow==8.0.1
