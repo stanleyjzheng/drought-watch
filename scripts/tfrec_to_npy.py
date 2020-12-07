@@ -1,3 +1,6 @@
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+import tensorflow as tf
 import argparse
 import os
 import math
@@ -94,11 +97,19 @@ def get_dataset(files, augment = False, shuffle = False, repeat = False,
     ds = ds.prefetch(AUTO)
     return ds
 
+def find_files(path):
+    test = glob(f"{path}/val/*")
+    train = glob(f"{path}/train/*")
+    return train,test
+
 if __name__=="__main__":
-    dataset = get_dataset(['input/drought-watch/droughtwatch_data/val/part-r-00000'], dim=65)
+    train, val = find_files('../input/drought-watch/droughtwatch_data')
+    print(train)
+    dataset = get_dataset(val[0], dim=65)
+    num=1
     for x, y in dataset:
-        # print(np.array(x[0]).shape, np.array(y[0]).shape)
-        for num,(x_1, y_1) in enumerate(zip(x, y)):
-            np.save(f"example_images/label_{int(y_1[0])}_image_num_{num+1}", np.array(x_1))
-            break
-        break
+        for x_1, y_1 in zip(x, y):
+            np.save(f"example_images/label_{int(y_1[0])}_image_num_{num}", np.array(x_1))
+            num += 1
+            if num > 30:
+                break

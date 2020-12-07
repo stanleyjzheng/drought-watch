@@ -15,7 +15,7 @@ st.set_page_config(
     layout="centered"
 )
 
-def build_model(dim=65, ef=0):
+def build_model(dim=224, ef=0):
     inp = tf.keras.layers.Input(shape=(dim,dim,10))
     base = EFNS[ef](input_shape=(dim,dim,10),weights=None,include_top=False) #Change imagnet to noisy-student here
     x = base(inp)
@@ -23,8 +23,8 @@ def build_model(dim=65, ef=0):
     x = tf.keras.layers.Dense(4,activation='sigmoid')(x)
     model = tf.keras.Model(inputs=inp,outputs=x)
     opt = tf.keras.optimizers.Adam(learning_rate=0.001)
-    loss_bce = tf.keras.losses.BinaryCrossentropy(label_smoothing=0.005)
-    model.compile(loss=loss_bce, optimizer=opt)
+    loss_bce = tf.keras.losses.BinaryCrossentropy(label_smoothing=0)
+    model.compile(optimizer=opt,loss=loss_bce)
     return model
 
 @st.cache
@@ -137,7 +137,7 @@ if userFile is not None:
         img = userFile.getvalue()
         img = np.load(io.BytesIO(img))
         img = np.reshape(img, (65, 65, 10))
-        img = np.expand_dims(img, axis=0)/255.
+        img = np.expand_dims(img, axis=0)
     with st.spinner(text = 'Loading...'):
         label = predict(img)
 
